@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>The Cricsters ✘ Bigcric</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <meta name="theme-color" content="#0a1733" />
+<meta name="referrer" content="no-referrer">
+
+
+    <!-- Preconnect for faster loading -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+
+    <!-- Shaka Player (latest) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@latest/dist/controls.css"
+        crossorigin="anonymous" />
+    <script src="https://cdn.jsdelivr.net/npm/shaka-player@latest/dist/shaka-player.ui.min.js"
+        crossorigin="anonymous"></script>
+
+
+
+    <style>
+        :root {
+            --blue1: #0b3b8c;
+            --blue2: #072b6a;
+            --bg: #0a1733;
+            --text: #ffffff;
+            --accent: #1e78ff;
+            --card-border: rgba(30, 120, 255, 0.25);
+            --shadow: rgba(0, 0, 0, 0.25);
+            --transition: all 0.2s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            line-height: 1.5;
+        }
+
+        /* ========== Layout ========== */
+        .container {
+            max-width: 980px;
+            margin: 14px auto 0;
+            padding: 0 12px 24px;
+        }
+
+        /* ========== Header ========== */
+        .header {
+            background: linear-gradient(135deg, var(--blue1), var(--blue2));
+            font-weight: 800;
+            text-align: center;
+            padding: 12px 16px;
+            border-radius: 12px;
+            letter-spacing: 0.4px;
+            box-shadow: 0 8px 20px var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 12px;
+        }
+
+        /* ========== Player Panel ========== */
+        .player-panel {
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 12px 0;
+            box-shadow: 0 10px 26px var(--shadow);
+            border: 3px solid var(--card-border);
+            position: relative;
+        }
+
+        .player-wrapper {
+            width: 100%;
+            position: relative;
+        }
+
+        .video-player {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            display: block;
+        }
+
+        /* Iframe Player */
+        .iframe-player {
+            width: 100%;
+            aspect-ratio: 16/9;
+            border: none;
+            background: #000;
+            display: none;
+        }
+
+        .iframe-player.active {
+            display: block;
+        }
+
+        /* Hide Shaka spinner */
+        .shaka-spinner-container,
+        .shaka-buffering-spinner,
+        .shaka-spinner {
+            display: none !important;
+        }
+
+        /* Iframe mode overrides */
+        .player-wrapper.iframe-mode .video-player,
+        .player-wrapper.iframe-mode .shaka-video-container,
+        .player-wrapper.iframe-mode .shaka-controls-container,
+        .player-wrapper.iframe-mode .shaka-bottom-controls,
+        .player-wrapper.iframe-mode .shaka-overflow-menu-button {
+            display: none !important;
+        }
+
+        .player-wrapper.iframe-mode [data-shaka-player-container]>div:not(.iframe-player):not(.error-overlay) {
+            display: none !important;
+        }
+
+        /* ========== Error Overlay ========== */
+        .error-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 11;
+            gap: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .error-overlay.visible {
+            display: flex;
+        }
+
+        .error-message {
+            font-size: 15px;
+            opacity: 0.9;
+            max-width: 320px;
+        }
+
+        .retry-btn {
+            padding: 10px 24px;
+            border-radius: 8px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .retry-btn:hover {
+            background: #3388ff;
+            transform: translateY(-1px);
+        }
+
+        .retry-btn:active {
+            transform: translateY(0);
+        }
+
+        /* ========== Toast Notification ========== */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: rgba(30, 30, 30, 0.95);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 2000;
+            pointer-events: none;
+            opacity: 0;
+            transition: all 0.35s ease;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ========== Reconnect Banner ========== */
+        .reconnect-banner {
+            display: none;
+            text-align: center;
+            background: #ff9800;
+            color: #000;
+            padding: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .reconnect-banner.visible {
+            display: block;
+        }
+
+        /* ========== Sections ========== */
+        .section {
+            background: linear-gradient(135deg, var(--blue1), var(--blue2));
+            border-radius: 12px;
+            padding: 14px;
+            margin: 12px 0;
+            box-shadow: 0 8px 20px var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .section-title {
+            margin: 0 0 10px;
+            text-align: center;
+            font-size: 18px;
+            letter-spacing: 0.2px;
+        }
+
+        .section-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .section-wrapper {
+            display: flex;
+            gap: 12px;
+        }
+
+        .section-wrapper .section {
+            flex: 1;
+            margin: 0;
+        }
+
+        /* ========== Buttons ========== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            background: transparent;
+            color: #fff;
+            border: 2px solid rgba(255, 255, 255, 0.85);
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* ========== Promo Card ========== */
+        .promo-card {
+            display: block;
+            margin: 12px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 20px var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            text-decoration: none;
+            color: #fff;
+            transition: transform 0.2s;
+        }
+
+        .promo-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .promo-card:active {
+            transform: translateY(1px);
+        }
+
+        .promo-image {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .promo-content {
+            background: linear-gradient(135deg, var(--blue1), var(--blue2));
+            padding: 12px;
+            text-align: center;
+        }
+
+        .promo-title {
+            font-weight: 800;
+            font-size: 16px;
+            letter-spacing: 0.3px;
+        }
+
+        /* ========== Telegram Popup ========== */
+        .popup-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .popup-overlay.visible {
+            display: flex;
+        }
+
+        .popup-card {
+            background: linear-gradient(135deg, #1a3a6e, #0d2247);
+            border-radius: 16px;
+            padding: 28px;
+            text-align: center;
+            max-width: 380px;
+            width: 100%;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .popup-title {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 20px;
+        }
+
+        .popup-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: var(--transition);
+        }
+
+        .popup-btn-primary {
+            background: #0088cc;
+            color: #fff;
+        }
+
+        .popup-btn-primary:hover {
+            background: #009de0;
+        }
+
+        .popup-btn-secondary {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+        }
+
+        .popup-btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* ========== Shaka Controls Polish ========== */
+        .shaka-controls-container {
+            transition: opacity 0.3s ease;
+        }
+
+        .shaka-bottom-controls {
+            padding: 4px 8px !important;
+        }
+
+        .shaka-volume-bar-container {
+            margin: 0 4px;
+        }
+
+        .shaka-overflow-menu,
+        .shaka-settings-menu {
+            border-radius: 8px !important;
+        }
+
+
+
+        /* ========== Responsive Design ========== */
+        @media (max-width: 600px) {
+            .section-wrapper {
+                flex-direction: column;
+            }
+
+            .section-wrapper .section {
+                margin: 6px 0;
+            }
+
+            .popup-card {
+                padding: 20px;
+            }
+
+            .popup-title {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .header {
+                font-size: 14px;
+                padding: 10px 12px;
+            }
+
+            .toast {
+                font-size: 12px;
+                padding: 10px 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">The Cricsters ✘ BigCric</div>
+
+        <!-- Video Player -->
+        <div class="player-panel">
+            <div class="player-wrapper" data-shaka-player-container id="playerContainer">
+                <video id="video" class="video-player" data-shaka-player autoplay playsinline
+                    controlsList="nodownload noremoteplayback" oncontextmenu="return false"
+                    poster="https://raw.githubusercontent.com/thecricstersxbigcric/test/refs/heads/main/open%20link%20in%20google%20chorme%20only.png">
+                </video>
+                <iframe id="iframePlayer" class="iframe-player" allowfullscreen
+                    allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+                <div id="errorOverlay" class="error-overlay">
+                    <p id="errorMsg" class="error-message">Something went wrong. Please try again.</p>
+                    <button class="retry-btn" id="retryBtn">Retry</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reconnecting Banner -->
+        <div id="reconnectBar" class="reconnect-banner">⚡ Reconnecting…</div>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="toast"></div>
+
+        <!-- Telegram Popup -->
+        <div id="tgPopup" class="popup-overlay">
+            <div class="popup-card">
+                <div class="popup-title">Join Our Telegram</div>
+                <button class="popup-btn popup-btn-primary" id="tgJoinBtn">Join Now</button>
+                <button class="popup-btn popup-btn-secondary" id="tgCloseBtn">Already Joined</button>
+            </div>
+        </div>
+
+        <!-- Info Sections -->
+        <div class="section-wrapper">
+            <div class="section">
+                <h3 class="section-title">📣 Follow Us for Updates!</h3>
+                <div class="section-row">
+                    <a class="btn" id="joinTgBtn" target="_blank" rel="noopener noreferrer">
+                        <img class="btn-icon"
+                            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRdqawMR26E_SKOhbCIAqNQCTZ-IUm1x-Rb1zqHhoqPbA"
+                            alt="Telegram" />
+                        Join Telegram For More Links
+                    </a>
+                </div>
+            </div>
+            <div class="section">
+                <h3 class="section-title">Share with Friends</h3>
+                <div class="section-row">
+                    <button class="btn" id="btnShare">Share This Page Link ❤️</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Promo Banner -->
+        <a class="promo-card" href="https://bit.ly/05mkparibookho" target="_blank" rel="noopener noreferrer">
+            <img class="promo-image"
+                src="https://raw.githubusercontent.com/thecricstersxbigcric/test/refs/heads/main/pari.png"
+                alt="Promo" />
+            <div class="promo-content">
+                <div class="promo-title">Get Started</div>
+            </div>
+        </a>
+    </div>
+
+    <script>
+        'use strict';
+
+        const CONFIG = {
+            telegramLink: "https://t.me/+w_oKk-2R2OgyNDNl",
+            apiUrl: "https://dd-pearl-sigma.vercel.app/main",
+            maxRetries: 3,
+            retryDelay: 1500
+        };
+
+        const DOM = {
+            video: document.getElementById("video"),
+            iframe: document.getElementById("iframePlayer"),
+            playerContainer: document.getElementById("playerContainer"),
+            errorOverlay: document.getElementById("errorOverlay"),
+            errorMsg: document.getElementById("errorMsg"),
+            retryBtn: document.getElementById("retryBtn"),
+            tgPopup: document.getElementById("tgPopup"),
+            toast: document.getElementById("toast"),
+            btnShare: document.getElementById("btnShare"),
+            joinTgBtn: document.getElementById("joinTgBtn"),
+            tgJoinBtn: document.getElementById("tgJoinBtn"),
+            tgCloseBtn: document.getElementById("tgCloseBtn")
+        };
+
+        let currentConfig = null;
+        let playerMode = null;
+        let player = null;
+        let ui = null;
+        let toastTimer = null;
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function isHtmlUrl(url) {
+            return url && (url.endsWith('.html') || url.includes('.html?') || url.includes('.html#'));
+        }
+
+        function showToast(msg, duration = 2800) {
+            clearTimeout(toastTimer);
+            DOM.toast.textContent = msg;
+            DOM.toast.classList.add("show");
+            toastTimer = setTimeout(() => DOM.toast.classList.remove("show"), duration);
+        }
+
+        function showError(msg) {
+            DOM.errorMsg.textContent = msg || "Something went wrong. Please try again.";
+            DOM.errorOverlay.classList.add("visible");
+        }
+
+        function hideError() {
+            DOM.errorOverlay.classList.remove("visible");
+        }
+
+        async function fetchConfig(id) {
+            if (!id) return null;
+
+            for (let attempt = 1; attempt <= CONFIG.maxRetries; attempt++) {
+                try {
+                    const res = await fetch(`${CONFIG.apiUrl}?id=${encodeURIComponent(id)}`);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                    const data = await res.json();
+                    if (data && !data.error && data.id === id && data.url) return data;
+                } catch (err) {
+                    if (attempt < CONFIG.maxRetries) {
+                        await delay(CONFIG.retryDelay * attempt);
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        function loadIframePlayer(url) {
+            playerMode = 'iframe';
+            hideError();
+            DOM.playerContainer.classList.add('iframe-mode');
+            DOM.iframe.classList.add('active');
+            DOM.iframe.src = url;
+            DOM.iframe.onerror = () => showError("Failed to load stream page. Please try again.");
+            showToast("Loading stream...");
+        }
+
+        async function loadShakaPlayer(url, k1, k2) {
+            playerMode = 'shaka';
+            hideError();
+
+            if (!window.shaka || !shaka.Player.isBrowserSupported()) {
+                showError("This browser is not supported for this stream.");
+                return;
+            }
+
+            if (!ui) {
+                ui = new shaka.ui.Overlay(new shaka.Player(DOM.video), DOM.playerContainer, DOM.video);
+                player = ui.getControls().getPlayer();
+                player.addEventListener("error", event => {
+                    const code = event.detail && event.detail.code ? event.detail.code : "unknown";
+                    showError(`Playback error (${code}). Tap Retry.`);
+                });
+            }
+
+            if (k1 && k2) {
+                player.configure({
+                    drm: {
+                        clearKeys: {
+                            [k1]: k2
+                        }
+                    }
+                });
+            }
+
+            try {
+                await player.load(url);
+                showToast("Stream loaded");
+            } catch (err) {
+                const code = err && err.code ? err.code : "unknown";
+                showError(`Failed to load stream (${code}). Tap Retry.`);
+            }
+        }
+
+        async function startPlayer() {
+            const streamId = new URLSearchParams(window.location.search).get("id");
+            currentConfig = await fetchConfig(streamId);
+
+            if (!currentConfig) {
+                window.location.href = CONFIG.telegramLink;
+                return;
+            }
+
+            if (isHtmlUrl(currentConfig.url)) {
+                loadIframePlayer(currentConfig.url);
+                return;
+            }
+
+            await loadShakaPlayer(currentConfig.url, currentConfig.k1, currentConfig.k2);
+        }
+
+        async function handleShare() {
+            const shareData = {
+                title: document.title,
+                text: "Watch live on THECRICSTERS",
+                url: window.location.href
+            };
+
+            if (navigator.share) {
+                try {
+                    await navigator.share(shareData);
+                } catch (err) {
+                    if (err.name !== "AbortError") {
+                        console.warn("Share failed:", err);
+                    }
+                }
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(window.location.href);
+                showToast("Link copied");
+            } catch {
+                prompt("Copy this link:", window.location.href);
+            }
+        }
+
+        function showTgPopup() {
+            DOM.tgPopup.classList.add("visible");
+        }
+
+        function closeTgPopup() {
+            DOM.tgPopup.classList.remove("visible");
+        }
+
+        function initEvents() {
+            DOM.retryBtn.addEventListener("click", async () => {
+                hideError();
+                if (!currentConfig) {
+                    await startPlayer();
+                    return;
+                }
+
+                if (playerMode === 'iframe') {
+                    loadIframePlayer(currentConfig.url);
+                } else {
+                    await loadShakaPlayer(currentConfig.url, currentConfig.k1, currentConfig.k2);
+                }
+            });
+
+            DOM.btnShare.addEventListener("click", handleShare);
+
+            DOM.tgJoinBtn.addEventListener("click", () => {
+                window.open(CONFIG.telegramLink, "_blank");
+                closeTgPopup();
+            });
+
+            DOM.tgCloseBtn.addEventListener("click", closeTgPopup);
+            DOM.joinTgBtn.href = CONFIG.telegramLink;
+
+            window.addEventListener("load", () => {
+                const joinNow = window.confirm("Join @thecricsters for more updates?");
+                if (joinNow) {
+                    window.location.href = CONFIG.telegramLink;
+                } else {
+                    showTgPopup();
+                }
+            });
+        }
+
+        initEvents();
+        startPlayer();
+    </script>
+</body>
+
+</html>
